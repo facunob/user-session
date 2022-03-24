@@ -2,6 +2,7 @@ package io.facuf.userservice.security;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
+import com.google.gson.Gson;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -12,7 +13,9 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import javax.servlet.FilterChain;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import java.util.Date;
+import java.util.List;
 import java.util.stream.Collectors;
 
 public class CustomAuthenticationFilter extends UsernamePasswordAuthenticationFilter {
@@ -34,9 +37,8 @@ public class CustomAuthenticationFilter extends UsernamePasswordAuthenticationFi
     }
 
     @Override
-    protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain, Authentication authResult)  {
+    protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain, Authentication authResult) throws IOException {
         String authorities = authResult.getAuthorities().stream().map(GrantedAuthority::getAuthority).collect(Collectors.joining(","));
-
         AuthUser user = (AuthUser) authResult.getPrincipal();
 
         Algorithm algorithm = Algorithm.HMAC256(Constants.JwtConfig.secretKey.getBytes());
@@ -47,6 +49,11 @@ public class CustomAuthenticationFilter extends UsernamePasswordAuthenticationFi
                 .withClaim("roles", authorities)
                 .sign(algorithm);
 
-        response.setHeader("accessToken", accessToken);
+
+        LoginResponseDTO responseLogin = new LoginResponseDTO(accessToken, authResult.getAuthorities().stream().map(GrantedAuthority::getAuthority).collect(Collectors.toList()));
+        String responseLoginToJson = new Gson().toJson(responseLogin);
+        response.setContentType("application/json");
+        response.getWriter().write(responseLoginToJson);
+        response.getWriter().flush();
     }
 }
